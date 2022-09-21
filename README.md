@@ -26,7 +26,12 @@ as translation from some languages might differ from country name stored in DB.
 DB is created of country codes described in ISO 3166 international standard
 
 ## Tests
-You can test it by sending POST requests on
+You can test that everything is build by sending GET request on http://localhost:5000/
+and you should receive 
+```
+Hello, I am available to receive requests
+```
+Function of REST API can be tested by sending POST requests on
 http://localhost:5000/match_country
 with body
 ```
@@ -37,16 +42,9 @@ with body
 		"Slowakei",
 		"Vatikan",
 		"Slovaška",
-		"Szlovakia",
+		"Slovakia",
 		"Belgrade",
 		"España",
 		"Nizozemsko"
 	]
 }
-```
-or GET request on http://localhost:5000/match_iso
-```
-{
-	"iso": "svk"
-}
-```
