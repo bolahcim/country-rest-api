@@ -1,19 +1,11 @@
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource
-from pymongo import MongoClient
 from googletrans import Translator
+import country_converter as coco
 
 translator = Translator()
 app = Flask(__name__)
 api = Api(app)
-
-#defines db address and access details
-client = MongoClient("mongodb://mongo-seed-db:27017", username='admin',password='admin')
-#defines name of db to connect to
-db = client.country
-#defines collection that we are going to use
-mycol = db['iso']
-
 
 class MatchCountry(Resource):
     def post(self):
@@ -24,7 +16,7 @@ class MatchCountry(Resource):
         status_code = checkPostedData(posted_data, "match_country")
         if status_code != 200:
             ret_json = {
-                "Message": "An error occured",
+                "Message": "Missing parameter",
                 "Status Code": status_code
             }
             return jsonify(ret_json)
@@ -32,55 +24,57 @@ class MatchCountry(Resource):
         # Define variables from request for iso validation
         iso_in = str(posted_data["iso"])
         iso_in = iso_in.lower()
+        special_char = ''.join(filter(str.isalnum, iso_in))
 
-        # Chose alpha2 or alpha3 based on length of iso_in
-        if len(iso_in) == 2:
-            country_name_db = mycol.find_one({"iso2": iso_in},{"_id": 0,"iso2": 0,"iso3": 0})
-        elif len(iso_in) == 3:
-            country_name_db = mycol.find_one({"iso3": iso_in},{"_id": 0,"iso2": 0,"iso3": 0})
+        # Chose name of the country based on alpha2, alpha3 or numeric iso
+        if len(iso_in) == 2 or len(iso_in) == 3 and special_char == iso_in:
+            name_out = coco.convert(names=iso_in, to='name_official').lower()
         else:
-            return 400
+            ret_json = {
+                "Message": "Received ISO doesn't meet conditions for ISO 3166 International standards",
+                "Status Code": 400
+            }
+            return jsonify(ret_json)
 
-        # Define name_out and check if there are more values in DB
-        name_out = country_name_db.get('name')
-        if isinstance(name_out, str):
-            name_out = [name_out]
-        else:
-            name_out = name_out
+        # Check if there are countires in received request
         country_in = posted_data["countries"]
+        if len(country_in) == 0:
+            ret_json = {
+                "Message": "There are no countries in your request",
+                "Status Code": 400
+            }
+            return jsonify(ret_json)
         country_out = []
-
         # Compare received array with saved value for iso
-        for name in name_out:
-            y = 0
-            for x in country_in:
-                # Translate received countries
-                trans_out = translator.translate(x, dest="en")
-                translated_name = str(trans_out.text)
-                translated_name = translated_name.lower()
-                # Compare translation with country name from DB
-                if translated_name == name:
-                    country_out.append(country_in[y].lower())
-                    y = y + 1
-                else:
-                    y = y + 1
+        y = 0
+        for country in country_in:
+            # Translate received countries
+            trans_out = translator.translate(country, dest="en")
+            translated_name = str(trans_out.text).lower()
+            name_to_compare = coco.convert(names=translated_name, to='name_official').lower()
+            # Compare translation with country name from DB
+            if name_to_compare == name_out:
+                country_out.append(country_in[y].lower())
+                y = y + 1
+            else:
+                y = y + 1
 
         # Count number of suitable results and sent response
         match_count = len(country_out)
         if match_count == 0:
             ret_json = {
-                "Message": "No match found",
-                "Status Code": 404
+                "Message": "No match for found received countries",
+                "Status Code": 406
             }
             return jsonify(ret_json)
         else:
             ret_map = {
                 'iso': iso_in,
-                'Status Code': 200,
+                'Status Code': status_code,
                 'count': match_count,
                 'countries': country_out
             }
-        return jsonify(ret_map)
+            return jsonify(ret_map)
 
 # Check if posted data are present
 def checkPostedData(posted_data, functionName):

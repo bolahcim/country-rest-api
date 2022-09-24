@@ -6,27 +6,3 @@ services:
     build: ./web
     ports:
       - "5000:5000"
-    depends_on:
-      - mongo-seed-db
-
-#  db:
-#    build: ./db
-
-  mongo-seed-db:
-    image: "mongo:${MONGO_IMAGE_TAG}"
-    container_name: "mongo-seed-db"
-    env_file:
-      - ../country-rest-api/.env
-    volumes:
-      - mongo-seed-db-volume:/data/db
-    restart: "always"
-
-  mongo-seed:
-    build: ./db
-    env_file:
-      - ../country-rest-api/.env
-    depends_on:
-      - mongo-seed-db
-
-volumes:
-  mongo-seed-db-volume:
