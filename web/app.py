@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_restful import Api, Resource
 from googletrans import Translator
 import country_converter as coco
@@ -13,39 +13,26 @@ class MatchCountry(Resource):
         posted_data = request.get_json()
 
         # Verify posted data
-        status_code = checkPostedData(posted_data, "match_country")
-        if status_code != 200:
-            ret_json = {
-                "Message": "Missing parameter",
-                "Status Code": status_code
-            }
-            return jsonify(ret_json)
+        if "iso" not in posted_data or "countries" not in posted_data:
+            return Response( "'iso' or 'countires' is undefined", status=422)
 
         # Define variables from request for ISO validation
         iso_in = str(posted_data["iso"])
         iso_in = iso_in.lower()
-        special_char = ''.join(filter(str.isalnum, iso_in))
 
         # Validate ISO
         name_out = coco.convert(names=iso_in, to='name_official').lower()
         if name_out != "not found":
             pass
         else:
-            ret_json = {
-                "Message": "Received ISO doesn't meet conditions for ISO 3166 International standards",
-                "Status Code": 406
-            }
-            return jsonify(ret_json)
+            return Response("Received ISO doesn't meet conditions for ISO 3166 International standards", status=406)
 
         # Check if there are countires in received request
         country_in = posted_data["countries"]
         if len(country_in) == 0:
-            ret_json = {
-                "Message": "There are no countries in your request",
-                "Status Code": 400
-            }
-            return jsonify(ret_json)
+            return Response("There are no countries in your request", status=406)
         country_out = []
+
         # Compare received array with saved value for iso
         y = 0
         for country in country_in:
@@ -63,27 +50,14 @@ class MatchCountry(Resource):
         # Count number of suitable results and sent response
         match_count = len(country_out)
         if match_count == 0:
-            ret_json = {
-                "Message": "No match for found received countries",
-                "Status Code": 406
-            }
-            return jsonify(ret_json)
+            return Response("No match for found received countries", status=406)
         else:
             ret_map = {
                 'iso': iso_in,
-                'Status Code': status_code,
-                'count': match_count,
+                'match_count': match_count,
                 'countries': country_out
             }
             return jsonify(ret_map)
-
-# Check if posted data are present
-def checkPostedData(posted_data, functionName):
-    if functionName == "match_country":
-        if "iso" not in posted_data or "countries" not in posted_data:
-            return 422 # Missing parameter
-        else:
-            return 200
 
 @app.route('/')
 def hello():
