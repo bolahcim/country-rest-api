@@ -21,18 +21,19 @@ class MatchCountry(Resource):
             }
             return jsonify(ret_json)
 
-        # Define variables from request for iso validation
+        # Define variables from request for ISO validation
         iso_in = str(posted_data["iso"])
         iso_in = iso_in.lower()
         special_char = ''.join(filter(str.isalnum, iso_in))
 
-        # Chose name of the country based on alpha2, alpha3 or numeric iso
-        if len(iso_in) == 2 or len(iso_in) == 3 and special_char == iso_in:
-            name_out = coco.convert(names=iso_in, to='name_official').lower()
+        # Validate ISO
+        name_out = coco.convert(names=iso_in, to='name_official').lower()
+        if name_out != "not found":
+            pass
         else:
             ret_json = {
                 "Message": "Received ISO doesn't meet conditions for ISO 3166 International standards",
-                "Status Code": 400
+                "Status Code": 406
             }
             return jsonify(ret_json)
 
